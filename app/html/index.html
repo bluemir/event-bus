@@ -1,0 +1,15 @@
+{{ define "index.html" }}
+<html>
+	<head>
+		<script type="module">
+			import "/static/js/app-main.js"
+		</script>
+	</head>
+	<body>
+		<h1>Hello World</h1>
+		<app-main text="foo bar">
+			<p>print this</p>
+		</app-main>
+	</body>
+</html>
+{{ end }}

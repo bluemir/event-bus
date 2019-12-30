@@ -5,18 +5,19 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jinzhu/gorm"
 	"github.com/sirupsen/logrus"
 
-	"github.com/bluemir/event-bus/pkg/auth"
 	"github.com/bluemir/event-bus/pkg/dist"
 )
 
 type Config struct {
-	Bind string
+	NetworkId string
+	Bind      string
 }
 
-func Run(ctx context.Context, authManager *auth.Manager, conf *Config) error {
-	server := &Server{authManager}
+func Run(ctx context.Context, db *gorm.DB, conf *Config) error {
+	server := &Server{db, map[string]*Agent{}}
 
 	app := gin.New()
 
@@ -37,18 +38,23 @@ func Run(ctx context.Context, authManager *auth.Manager, conf *Config) error {
 	// handle static
 	app.StaticFS("/static/", dist.Apps.HTTPBox())
 
-	app.GET("/user/register", server.static("register.html"))
-	app.POST("/user/register", server.handleRegister)
-
 	// Static pages
-	app.Use(server.Authn)
+	//app.Use(server.Authn)
 	app.GET("/", server.static("index.html"))
+
+	// Core
+	{
+		v1 := app.Group("/v1")
+		v1.GET("/ping")
+		v1.GET("/stream", server.Stream)
+	}
 
 	return app.Run(conf.Bind)
 }
 
 type Server struct {
-	Auth *auth.Manager
+	db     *gorm.DB
+	agents map[string]*Agent
 }
 
 func (server *Server) static(path string) func(c *gin.Context) {

@@ -73,6 +73,7 @@ build/docker-image.pushed: build/docker-image
 
 clean:
 	rm -rf build/
+	ps -f -C make | grep "test run" | awk '{print $$2}' | xargs kill
 
 run: build/$(BIN_NAME)
 	$< -vv --bind=:3003

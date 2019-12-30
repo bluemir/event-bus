@@ -11,7 +11,6 @@ import (
 	"golang.org/x/sync/errgroup"
 	"gopkg.in/alecthomas/kingpin.v2"
 
-	"github.com/bluemir/event-bus/pkg/auth"
 	"github.com/bluemir/event-bus/pkg/server"
 )
 
@@ -19,9 +18,7 @@ var Version string
 var AppName string
 
 type Config struct {
-	DBPath string
 	Server server.Config
-	Auth   auth.Config
 }
 
 func main() {
@@ -48,19 +45,14 @@ func main() {
 	logrus.Debugf("%#v", conf)
 
 	// Init DB
-	db, err := gorm.Open("sqlite3", conf.DBPath)
+	db, err := gorm.Open("sqlite3", ":memory:")
 	if err != nil {
 		logrus.Error(errors.Wrap(err, "failed to connect database"))
 	}
 
-	authManager, err := auth.New(db, &conf.Auth)
-	if err != nil {
-		logrus.Panic(err)
-	}
-
 	eg, ctx := errgroup.WithContext(context.Background())
 	eg.Go(func() error {
-		return server.Run(ctx, authManager, &conf.Server)
+		return server.Run(ctx, db, &conf.Server)
 	})
 	if err := eg.Wait(); err != nil {
 		logrus.Panic(err)

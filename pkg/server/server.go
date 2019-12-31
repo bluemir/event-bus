@@ -5,19 +5,18 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jinzhu/gorm"
 	"github.com/sirupsen/logrus"
 
+	"github.com/bluemir/event-bus/pkg/core"
 	"github.com/bluemir/event-bus/pkg/dist"
 )
 
 type Config struct {
-	NetworkId string
-	Bind      string
+	Bind string
 }
 
-func Run(ctx context.Context, db *gorm.DB, conf *Config) error {
-	server := &Server{db, map[string]*Agent{}}
+func Run(ctx context.Context, c *core.Core, conf *Config) error {
+	server := &Server{conf, c}
 
 	app := gin.New()
 
@@ -44,17 +43,29 @@ func Run(ctx context.Context, db *gorm.DB, conf *Config) error {
 
 	// Core
 	{
-		v1 := app.Group("/v1")
+		v1 := app.Group("/v1", server.checkNetworkId)
 		v1.GET("/ping")
 		v1.GET("/stream", server.Stream)
 	}
 
-	return app.Run(conf.Bind)
+	// TODO graceful shutdown
+	errc := make(chan error)
+	go func() {
+		errc <- app.Run(conf.Bind)
+	}()
+
+	select {
+	case err := <-errc:
+		return err
+	case <-ctx.Done():
+		logrus.Tracef("context done")
+		return ctx.Err()
+	}
 }
 
 type Server struct {
-	db     *gorm.DB
-	agents map[string]*Agent
+	config *Config
+	core   *core.Core
 }
 
 func (server *Server) static(path string) func(c *gin.Context) {

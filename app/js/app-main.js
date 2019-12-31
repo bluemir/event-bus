@@ -18,9 +18,13 @@ class AppMain  extends $.CustomElement {
 		super();
 
 		this.render();
+		this.test();
 	}
 	render() {
 		render(template(this.attr("text")), this.shadow);
+	}
+	test() {
+		var ws = new WebSocket($.util.wsURL(`/v1/stream?token=${btoa("test:")}`));
 	}
 }
 customElements.define("app-main", AppMain);

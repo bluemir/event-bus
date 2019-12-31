@@ -37,6 +37,7 @@ build: build/$(BIN_NAME)
 build/$(BIN_NAME).unpacked: $(GO_SOURCES) makefile
 	@mkdir -p build
 	go build -v \
+		-trimpath \
 		-ldflags "\
 			-X main.AppName=$(BIN_NAME) \
 			-X main.Version=$(VERSION)  \
@@ -76,7 +77,7 @@ clean:
 	ps -f -C make | grep "test run" | awk '{print $$2}' | xargs kill
 
 run: build/$(BIN_NAME)
-	$< -vv --bind=:3003
+	$< -vv --bind=:3003 --network=test --key=""
 
 auto-run:
 	while true; do \

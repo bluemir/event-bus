@@ -3,8 +3,10 @@ package core
 import (
 	"context"
 	"encoding/json"
+	"time"
 
 	"github.com/jinzhu/gorm"
+	"github.com/pkg/errors"
 	"github.com/rs/xid"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/websocket"
@@ -14,6 +16,7 @@ type Config struct {
 	NetworkId  string
 	NetworkKey string
 	Peers      []string
+	Retry      int
 }
 
 func New(db *gorm.DB, conf *Config) (*Core, error) {
@@ -47,13 +50,18 @@ func (core *Core) tryConnect(ctx context.Context, peer string) error {
 			"token " + core.getToken(),
 		},
 	}
-	conn, err := websocket.DialConfig(conf)
-	if err != nil {
-		return err
+	for retry := 0; retry < core.config.Retry; retry++ {
+		conn, err := websocket.DialConfig(conf)
+		if err != nil {
+			logrus.Errorf("connection failed(retry: %d): %s", retry, err)
+			time.Sleep(1*time.Second + time.Duration(retry*retry)*time.Second)
+			continue
+		}
+		logrus.Trace("connected. reset retry")
+		retry = 0
+		core.HandleConnection(conn)
 	}
-	logrus.Trace("connected")
-	go core.HandleConnection(conn)
-	return nil
+	return errors.Errorf("connection failed")
 }
 func (core *Core) HandleConnection(conn *websocket.Conn) {
 	defer conn.Close()

@@ -226,6 +226,14 @@ var $ = {
 				return parent;
 			},
 		},
+		base64: {
+			encode: function(str) {
+				return btoa(str);
+			},
+			decode: function(str) {
+				return atob(str);
+			}
+		},
 	},
 	event: new EventTarget(),
 	_registerGlobal: function() {

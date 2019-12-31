@@ -10,8 +10,9 @@ import (
 func (server *Server) checkNetworkId(c *gin.Context) {
 	h := c.GetHeader("Authorization")
 	if t, ok := c.GetQuery("token"); h == "" && ok {
-		h = "token " + t
+		h = "token " + t // for browser
 	}
+	// TODO check browser other way....
 
 	if err := server.core.Auth(h); err != nil {
 		c.AbortWithError(http.StatusUnauthorized, err)

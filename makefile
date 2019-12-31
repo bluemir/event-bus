@@ -74,7 +74,8 @@ build/docker-image.pushed: build/docker-image
 
 clean:
 	rm -rf build/
-	ps -f -C make | grep "test run" | awk '{print $$2}' | xargs kill
+	ps -f -C make | grep "test run" | awk '{print $$2}' | xargs kill || true
+	ps -f -C $(BIN_NAME) | grep 'retry=10' | awk '{print $$2}' | xargs kill || true
 
 run: build/$(BIN_NAME)
 	$< -vv --bind=:3003 --network=test --key=""
@@ -99,5 +100,15 @@ auto-run:
 test:
 	go test -v ./pkg/...
 
+helper: build/$(BIN_NAME)
+	ps -f -C $(BIN_NAME) | grep 'retry=10' | awk '{print $$2}' | xargs kill || true;
+	for port in $$(seq 8021 8025) ; do \
+		$< -vv \
+			--retry=10 \
+			--bind=:$$port \
+			--network=test \
+			--key="" \
+			--peer=localhost:3003 & \
+	done
 
 .PHONY: build docker push clean run auto-run .sources test deploy

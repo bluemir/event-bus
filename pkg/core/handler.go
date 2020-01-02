@@ -43,8 +43,6 @@ func (core *Core) HandleConnection(conn *websocket.Conn) {
 			core.collectActivity(conn.LocalAddr(), PacketRecived)
 		}
 
-		logrus.Debug(evt)
-
 		// ===== check duplication
 
 		// if evt.Expire < time.Now()
@@ -58,22 +56,20 @@ func (core *Core) HandleConnection(conn *websocket.Conn) {
 			continue
 		}
 
-		if err := core.db.Save(evt).Error; err != nil {
-			logrus.Error(err) // error on save event
+		// ===== send to other peer
+		if err := core.broadcast(evt); err != nil {
+			logrus.Error(err) // error on broadcast
 			continue
 		}
-		// =====
 
+		// ===== handle event
 		if evt.Detail.ServerInfo != nil {
 			// it is server event
-			core.UpdatePeerInfo(evt.Detail.ServerInfo)
+			core.updatePeerInfo(evt.Detail.ServerInfo)
 		}
 
-		// fire
-		core.broadcast(evt)
+		if evt.Detail.Message != nil {
+			logrus.WithField("eid", evt.Id).WithField("at", evt.Expire).Trace(evt.Detail.Message)
+		}
 	}
-}
-func (core *Core) UpdatePeerInfo(info *ServerInfo) {
-	// TODO Implement
-	logrus.Infof("%#v", info)
 }

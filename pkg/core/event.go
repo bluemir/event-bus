@@ -1,6 +1,7 @@
 package core
 
 import (
+	"context"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -24,7 +25,21 @@ type Message struct {
 	Body  string
 }
 
-func (core *Core) gcEvent() error {
+func (core *Core) broadcast(evt *Event) error {
+	// mark
+	if err := core.db.Save(evt).Error; err != nil {
+		return err
+	}
+	for _, a := range core.peers {
+		// TODO ErrHandler. collect error...
+		if err := a.encoder.Encode(evt); err != nil {
+			logrus.Trace(err)
+		}
+	}
+	return nil
+}
+
+func (core *Core) gcEvent(ctx context.Context) error {
 	result := core.db.Where("expire < ?", time.Now()).Delete(&Event{})
 
 	if err := result.Error; err != nil {

@@ -1,20 +1,24 @@
 package core
 
 import (
+	"context"
 	"time"
 
 	"github.com/rs/xid"
 	"github.com/sirupsen/logrus"
 )
 
-func (core *Core) broadcastServerInfo() error {
-	core.broadcast(&Event{
+func (core *Core) broadcastServerInfo(ctx context.Context) error {
+	if err := core.broadcast(&Event{
 		Id:     xid.New().String(),
 		Expire: time.Now().Add(60 * time.Second),
 		Detail: EventDetail{
 			ServerInfo: core.buildServerInfo(),
 		},
-	})
+	}); err != nil {
+		logrus.Error(err)
+		// ignore it because broadcast server info is minor function
+	}
 	return nil
 }
 func (core *Core) buildServerInfo() *ServerInfo {

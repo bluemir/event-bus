@@ -2,7 +2,6 @@ package core
 
 import (
 	"context"
-	"encoding/json"
 	"net/url"
 	"time"
 
@@ -84,17 +83,4 @@ func (core *Core) tryConnect(ctx context.Context, peer *url.URL) error {
 		core.HandleConnection(conn)
 	}
 	return errors.Errorf("connection failed")
-}
-
-func (core *Core) broadcast(evt *Event) {
-	for _, a := range core.peers {
-		// TODO ErrHandler
-		if err := a.encoder.Encode(evt); err != nil {
-			logrus.Trace(err)
-		}
-	}
-}
-
-type Peer struct {
-	encoder *json.Encoder
 }

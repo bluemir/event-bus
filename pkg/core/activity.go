@@ -1,6 +1,7 @@
 package core
 
 import (
+	"context"
 	"net"
 	"time"
 
@@ -40,7 +41,7 @@ func (core *Core) collectActivity(addr net.Addr, kind ActivityKind) {
 
 	logrus.Tracef("activity: %s", addr.String())
 }
-func (core *Core) gcActivity() error {
+func (core *Core) gcActivity(ctx context.Context) error {
 	result := core.db.Where("at < ?", time.Now().Add(-1*time.Hour)).Delete(&Activity{})
 
 	if err := result.Error; err != nil {

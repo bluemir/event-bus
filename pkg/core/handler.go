@@ -16,12 +16,10 @@ func (core *Core) HandleConnection(conn *websocket.Conn) {
 		// it is child...
 		logrus.
 			WithField("request.remoteAddr", conn.Request().RemoteAddr).
-			WithField("remoteAddr", conn.RemoteAddr()). // origin...
 			WithField("localAddr", conn.LocalAddr()).
 			Tracef("client accept")
 
-		// XXX save origin for address?
-
+		core.collectActivity(conn.LocalAddr(), Connected)
 	}
 
 	encoder := json.NewEncoder(conn)
@@ -36,13 +34,18 @@ func (core *Core) HandleConnection(conn *websocket.Conn) {
 
 	evt := &Event{}
 	for {
+
 		if err := decoder.Decode(evt); err != nil {
 			logrus.Error(err)
 			encoder.Encode(map[string]interface{}{"msg": err.Error(), "error": true}) // ignore error. already error occur
 			return
 		}
+		core.collectActivity(conn.LocalAddr(), PacketRecived)
 
 		logrus.Debug(evt)
+
+		// ===== check duplication
+
 		// if evt.Expire < time.Now()
 		if evt.Expire.Before(time.Now()) {
 			logrus.WithField("eid", evt.Id).Tracef("ignore event. because expired")
@@ -58,8 +61,18 @@ func (core *Core) HandleConnection(conn *websocket.Conn) {
 			logrus.Error(err) // error on save event
 			continue
 		}
+		// =====
+
+		if evt.Detail.ServerInfo != nil {
+			// it is server event
+			core.UpdatePeerInfo(evt.Detail.ServerInfo)
+		}
 
 		// fire
 		core.broadcast(evt)
+
 	}
+}
+func (core *Core) UpdatePeerInfo(info *ServerInfo) {
+	// TODO Implement
 }

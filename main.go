@@ -35,7 +35,7 @@ func main() {
 
 	app.Flag("verbose", "Log level").Short('v').CounterVar(&LogLevel)
 	app.Flag("bind", "Bind address").Default(":8080").StringVar(&conf.Server.Bind)
-	app.Flag("peer", "Peer address").StringsVar(&conf.Core.Peers)
+	app.Flag("peer", "Initial peer address").URLListVar(&conf.Core.Peers)
 	app.Flag("network", "Network ID").Default(xid.New().String()).PlaceHolder("RandomId").StringVar(&conf.Core.NetworkId)
 	app.Flag("key", "Network secret key").Default(util.RandomString(32)).PlaceHolder("RandomString").StringVar(&conf.Core.NetworkKey)
 	app.Flag("retry", "Retry count if connection closed").Default("10").IntVar(&conf.Core.Retry)

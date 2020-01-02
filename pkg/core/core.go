@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net"
+	"net/url"
 	"time"
 
 	"github.com/jinzhu/gorm"
@@ -17,12 +18,15 @@ import (
 type Config struct {
 	NetworkId  string
 	NetworkKey string
-	Peers      []string
+	Peers      []*url.URL
 	Retry      int
 }
 
 func New(db *gorm.DB, conf *Config) (*Core, error) {
-	if err := db.AutoMigrate(&Event{}).Error; err != nil {
+	if err := db.AutoMigrate(
+		&Event{},
+		&Activity{},
+	).Error; err != nil {
 		return nil, err
 	}
 	return &Core{db, conf, map[string]*Peer{}}, nil
@@ -73,19 +77,40 @@ func (core *Core) Run(ctx context.Context) error {
 				if err := result.Error; err != nil {
 					logrus.Warn("fail to gc Event", err)
 				}
-				logrus.Debugf("gc done, delete %d", result.RowsAffected)
+				logrus.Debugf("event gc done, delete %d", result.RowsAffected)
 			case <-nCtx.Done():
 				return nCtx.Err()
 			}
 		}
 	})
+	eg.Go(func() error {
+		tick := time.NewTicker(1 * time.Minute)
+		defer tick.Stop()
+		for {
+			select {
+			case <-tick.C:
+				result := core.db.Where("at < ?", time.Now().Add(-1*time.Hour)).Delete(&Activity{})
+
+				if err := result.Error; err != nil {
+					logrus.Warn("fail to gc activity", err)
+				}
+				logrus.Debugf("activity gc done, delete %d", result.RowsAffected)
+			case <-nCtx.Done():
+				return nCtx.Err()
+			}
+		}
+	})
+	// TODO
+	// eg.Go(cron(ctx, core.broadcastServerInfo, 5*time.Minute))
+	// eg.Go(cron(ctx, core.gcEvent, 5*time.Minute))
+	// eg.Go(cron(ctx, core.gcConnectionHistory, 1*time.Minute))
 
 	return eg.Wait()
 }
-func (core *Core) tryConnect(ctx context.Context, peer string) error {
+func (core *Core) tryConnect(ctx context.Context, peer *url.URL) error {
 	logrus.Tracef("try to connect '%s'", peer)
 
-	conf, err := websocket.NewConfig("ws://"+peer+"/v1/stream", peer)
+	conf, err := websocket.NewConfig(peer.String(), peer.Host)
 	if err != nil {
 		return err
 	}

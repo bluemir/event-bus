@@ -108,7 +108,7 @@ helper: build/$(BIN_NAME)
 			--bind=:$$port \
 			--network=test \
 			--key="" \
-			--peer=localhost:3003 & \
+			--peer=ws://localhost:3003/v1/stream & \
 	done
 
 .PHONY: build docker push clean run auto-run .sources test deploy

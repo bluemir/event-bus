@@ -12,8 +12,8 @@ type EventDetail struct {
 	Message    *Message
 }
 type ServerInfo struct {
-	Name  string
-	Addrs []string
+	Name      string
+	Addresses []string // stream address
 }
 type Message struct {
 	Title string

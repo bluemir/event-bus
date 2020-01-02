@@ -61,6 +61,7 @@ func main() {
 	if err != nil {
 		logrus.Error(errors.Wrap(err, "failed to connect database"))
 	}
+	db.DB().SetMaxOpenConns(1)
 	c, err := core.New(db, &conf.Core)
 	if err != nil {
 		logrus.Error(err)

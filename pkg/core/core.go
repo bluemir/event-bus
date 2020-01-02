@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"encoding/json"
+	"net"
 	"time"
 
 	"github.com/jinzhu/gorm"
@@ -10,6 +11,7 @@ import (
 	"github.com/rs/xid"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/websocket"
+	"golang.org/x/sync/errgroup"
 )
 
 type Config struct {
@@ -20,6 +22,9 @@ type Config struct {
 }
 
 func New(db *gorm.DB, conf *Config) (*Core, error) {
+	if err := db.AutoMigrate(&Event{}).Error; err != nil {
+		return nil, err
+	}
 	return &Core{db, conf, map[string]*Peer{}}, nil
 }
 
@@ -30,13 +35,52 @@ type Core struct {
 }
 
 func (core *Core) Run(ctx context.Context) error {
+	eg, nCtx := errgroup.WithContext(ctx)
+
 	for _, peer := range core.config.Peers {
-		if err := core.tryConnect(ctx, peer); err != nil {
-			return err
-		}
+		eg.Go(func() error {
+			addr := peer // copy
+			return core.tryConnect(ctx, addr)
+		})
 	}
-	// TODO wait?
-	return nil
+
+	eg.Go(func() error {
+		tick := time.NewTicker(1 * time.Minute)
+		defer tick.Stop()
+		for {
+			select {
+			case <-tick.C:
+				core.broadcast(&Event{
+					Id:     xid.New().String(),
+					Expire: time.Now().Add(60 * time.Second),
+					Detail: EventDetail{
+						ServerInfo: &ServerInfo{},
+					},
+				}) // TODO send server info
+			case <-nCtx.Done():
+				return nCtx.Err()
+			}
+		}
+	})
+	eg.Go(func() error {
+		tick := time.NewTicker(5 * time.Minute)
+		defer tick.Stop()
+		for {
+			select {
+			case <-tick.C:
+				result := core.db.Where("expire < ?", time.Now()).Delete(&Event{})
+
+				if err := result.Error; err != nil {
+					logrus.Warn("fail to gc Event", err)
+				}
+				logrus.Debugf("gc done, delete %d", result.RowsAffected)
+			case <-nCtx.Done():
+				return nCtx.Err()
+			}
+		}
+	})
+
+	return eg.Wait()
 }
 func (core *Core) tryConnect(ctx context.Context, peer string) error {
 	logrus.Tracef("try to connect '%s'", peer)
@@ -63,42 +107,39 @@ func (core *Core) tryConnect(ctx context.Context, peer string) error {
 	}
 	return errors.Errorf("connection failed")
 }
-func (core *Core) HandleConnection(conn *websocket.Conn) {
-	defer conn.Close()
 
-	if conn.IsServerConn() {
-		// it is child...
-	}
-
-	encoder := json.NewEncoder(conn)
-	decoder := json.NewDecoder(conn)
-
-	id := xid.New().String()
-
-	core.peers[id] = &Peer{encoder}
-	defer func() {
-		delete(core.peers, id)
-	}()
-
-	evt := &Event{}
-	for {
-		if err := decoder.Decode(evt); err != nil {
-			logrus.Error(err)
-			encoder.Encode(map[string]interface{}{"msg": err.Error(), "error": true}) // ignore error. already error occur
-			return
-		}
-
-		// fire
-		core.broadcast(evt)
-	}
-}
 func (core *Core) broadcast(evt *Event) {
 	for _, a := range core.peers {
 		// TODO ErrHandler
-		a.encoder.Encode(evt)
+		if err := a.encoder.Encode(evt); err != nil {
+			logrus.Trace(err)
+		}
 	}
 }
 
 type Peer struct {
 	encoder *json.Encoder
+}
+
+func (core *Core) getAddrs() ([]string, error) {
+	result := []string{}
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		return nil, err
+	}
+	for _, i := range ifaces {
+		addrs, err := i.Addrs()
+		if err != nil {
+			return nil, err
+		}
+		for _, addr := range addrs {
+			switch v := addr.(type) {
+			case *net.IPNet:
+				result = append(result, v.IP.String())
+			case *net.IPAddr:
+				result = append(result, v.IP.String())
+			}
+		}
+	}
+	return result, nil
 }

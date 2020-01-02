@@ -48,64 +48,21 @@ func (core *Core) Run(ctx context.Context) error {
 		})
 	}
 
-	eg.Go(func() error {
-		tick := time.NewTicker(1 * time.Minute)
-		defer tick.Stop()
-		for {
-			select {
-			case <-tick.C:
-				core.broadcast(&Event{
-					Id:     xid.New().String(),
-					Expire: time.Now().Add(60 * time.Second),
-					Detail: EventDetail{
-						ServerInfo: &ServerInfo{},
-					},
-				}) // TODO send server info
-			case <-nCtx.Done():
-				return nCtx.Err()
-			}
-		}
-	})
-	eg.Go(func() error {
-		tick := time.NewTicker(5 * time.Minute)
-		defer tick.Stop()
-		for {
-			select {
-			case <-tick.C:
-				result := core.db.Where("expire < ?", time.Now()).Delete(&Event{})
-
-				if err := result.Error; err != nil {
-					logrus.Warn("fail to gc Event", err)
-				}
-				logrus.Debugf("event gc done, delete %d", result.RowsAffected)
-			case <-nCtx.Done():
-				return nCtx.Err()
-			}
-		}
-	})
-	eg.Go(func() error {
-		tick := time.NewTicker(1 * time.Minute)
-		defer tick.Stop()
-		for {
-			select {
-			case <-tick.C:
-				result := core.db.Where("at < ?", time.Now().Add(-1*time.Hour)).Delete(&Activity{})
-
-				if err := result.Error; err != nil {
-					logrus.Warn("fail to gc activity", err)
-				}
-				logrus.Debugf("activity gc done, delete %d", result.RowsAffected)
-			case <-nCtx.Done():
-				return nCtx.Err()
-			}
-		}
-	})
-	// TODO
-	// eg.Go(cron(ctx, core.broadcastServerInfo, 5*time.Minute))
-	// eg.Go(cron(ctx, core.gcEvent, 5*time.Minute))
-	// eg.Go(cron(ctx, core.gcConnectionHistory, 1*time.Minute))
+	eg.Go(cron(nCtx, core.broadcastServerInfo, 1*time.Minute))
+	eg.Go(cron(nCtx, core.gcEvent, 30*time.Second))
+	eg.Go(cron(nCtx, core.gcActivity, 1*time.Minute))
 
 	return eg.Wait()
+}
+func (core *Core) broadcastServerInfo() error {
+	core.broadcast(&Event{
+		Id:     xid.New().String(),
+		Expire: time.Now().Add(60 * time.Second),
+		Detail: EventDetail{
+			ServerInfo: &ServerInfo{},
+		},
+	}) // TODO send server info
+	return nil
 }
 func (core *Core) tryConnect(ctx context.Context, peer *url.URL) error {
 	logrus.Tracef("try to connect '%s'", peer)

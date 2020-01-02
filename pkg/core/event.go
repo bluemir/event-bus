@@ -1,6 +1,10 @@
 package core
 
-import "time"
+import (
+	"time"
+
+	"github.com/sirupsen/logrus"
+)
 
 type Event struct {
 	Id     string `gorm:"primary_key"`
@@ -18,4 +22,14 @@ type ServerInfo struct {
 type Message struct {
 	Title string
 	Body  string
+}
+
+func (core *Core) gcEvent() error {
+	result := core.db.Where("expire < ?", time.Now()).Delete(&Event{})
+
+	if err := result.Error; err != nil {
+		logrus.Warn("fail to gc Event", err)
+	}
+	logrus.Debugf("event gc done, delete %d", result.RowsAffected)
+	return nil
 }

@@ -13,7 +13,6 @@ func (core *Core) HandleConnection(conn *websocket.Conn) {
 	defer conn.Close()
 
 	if conn.IsServerConn() {
-		// it is child...
 		logrus.
 			WithField("request.remoteAddr", conn.Request().RemoteAddr).
 			WithField("localAddr", conn.LocalAddr()).
@@ -40,7 +39,9 @@ func (core *Core) HandleConnection(conn *websocket.Conn) {
 			encoder.Encode(map[string]interface{}{"msg": err.Error(), "error": true}) // ignore error. already error occur
 			return
 		}
-		core.collectActivity(conn.LocalAddr(), PacketRecived)
+		if conn.IsServerConn() {
+			core.collectActivity(conn.LocalAddr(), PacketRecived)
+		}
 
 		logrus.Debug(evt)
 
@@ -70,9 +71,9 @@ func (core *Core) HandleConnection(conn *websocket.Conn) {
 
 		// fire
 		core.broadcast(evt)
-
 	}
 }
 func (core *Core) UpdatePeerInfo(info *ServerInfo) {
 	// TODO Implement
+	logrus.Infof("%#v", info)
 }

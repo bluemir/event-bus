@@ -38,7 +38,7 @@ func (core *Core) collectActivity(addr net.Addr, kind ActivityKind) {
 		return
 	}
 
-	logrus.Tracef("activity: %s", a.String())
+	logrus.Tracef("activity: %s", addr.String())
 }
 func (core *Core) gcActivity() error {
 	result := core.db.Where("at < ?", time.Now().Add(-1*time.Hour)).Delete(&Activity{})

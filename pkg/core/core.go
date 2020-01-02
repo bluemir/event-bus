@@ -3,7 +3,6 @@ package core
 import (
 	"context"
 	"encoding/json"
-	"net"
 	"net/url"
 	"time"
 
@@ -29,13 +28,19 @@ func New(db *gorm.DB, conf *Config) (*Core, error) {
 	).Error; err != nil {
 		return nil, err
 	}
-	return &Core{db, conf, map[string]*Peer{}}, nil
+	return &Core{
+		db:         db,
+		config:     conf,
+		peers:      map[string]*Peer{},
+		serverName: xid.New().String(),
+	}, nil
 }
 
 type Core struct {
-	db     *gorm.DB
-	config *Config
-	peers  map[string]*Peer
+	db         *gorm.DB
+	config     *Config
+	peers      map[string]*Peer
+	serverName string
 }
 
 func (core *Core) Run(ctx context.Context) error {
@@ -54,16 +59,7 @@ func (core *Core) Run(ctx context.Context) error {
 
 	return eg.Wait()
 }
-func (core *Core) broadcastServerInfo() error {
-	core.broadcast(&Event{
-		Id:     xid.New().String(),
-		Expire: time.Now().Add(60 * time.Second),
-		Detail: EventDetail{
-			ServerInfo: &ServerInfo{},
-		},
-	}) // TODO send server info
-	return nil
-}
+
 func (core *Core) tryConnect(ctx context.Context, peer *url.URL) error {
 	logrus.Tracef("try to connect '%s'", peer)
 
@@ -101,27 +97,4 @@ func (core *Core) broadcast(evt *Event) {
 
 type Peer struct {
 	encoder *json.Encoder
-}
-
-func (core *Core) getAddrs() ([]string, error) {
-	result := []string{}
-	ifaces, err := net.Interfaces()
-	if err != nil {
-		return nil, err
-	}
-	for _, i := range ifaces {
-		addrs, err := i.Addrs()
-		if err != nil {
-			return nil, err
-		}
-		for _, addr := range addrs {
-			switch v := addr.(type) {
-			case *net.IPNet:
-				result = append(result, v.IP.String())
-			case *net.IPAddr:
-				result = append(result, v.IP.String())
-			}
-		}
-	}
-	return result, nil
 }

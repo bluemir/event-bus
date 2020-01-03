@@ -47,6 +47,16 @@ func Run(ctx context.Context, c *core.Core, conf *Config) error {
 		v1.GET("/ping")
 		v1.GET("/stream", server.Stream)
 	}
+	{
+		// XXX
+		debug := app.Group("/debug", func(c *gin.Context) {
+			if logrus.GetLevel() < logrus.DebugLevel {
+				c.JSON(http.StatusForbidden, gin.H{"msg": "not debug mode"})
+				c.Abort()
+			}
+		})
+		debug.GET("/peer-info", server.debugServerInfo)
+	}
 
 	// TODO graceful shutdown
 	errc := make(chan error)

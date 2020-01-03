@@ -65,7 +65,7 @@ func (core *Core) HandleConnection(conn *websocket.Conn) {
 		// ===== handle event
 		if evt.Detail.ServerInfo != nil {
 			// it is server event
-			core.updatePeerInfo(evt.Detail.ServerInfo)
+			core.updatePeerServerInfo(evt.Detail.ServerInfo)
 		}
 
 		if evt.Detail.Message != nil {

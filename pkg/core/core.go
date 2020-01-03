@@ -24,7 +24,7 @@ func New(db *gorm.DB, conf *Config) (*Core, error) {
 	if err := db.AutoMigrate(
 		&Event{},
 		&Activity{},
-		&PeerInfo{},
+		&NodeInfo{},
 	).Error; err != nil {
 		return nil, err
 	}

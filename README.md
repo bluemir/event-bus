@@ -37,3 +37,4 @@ WebSocket만 사용해서 구현되는 이벤트 전달 구조
     * 단 Terminal Node는 구현에 따라 Persistancy가 필요할수 있다.
 * advertise address를 직접 지정 하지 않고 쓸수 있으면 좋겠다.
 	* advertise address를 매 연결 마다  저장하고 접속 횟수를 저장해서 server info에 반영 한다.
+* Browser에서는 특정URL에 연결해서 임시 Token을 받고 그 token으로 접속하게하면 된다.

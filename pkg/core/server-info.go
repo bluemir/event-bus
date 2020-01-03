@@ -2,11 +2,8 @@ package core
 
 import (
 	"context"
-	"database/sql/driver"
-	"encoding/json"
 	"time"
 
-	"github.com/pkg/errors"
 	"github.com/rs/xid"
 	"github.com/sirupsen/logrus"
 )
@@ -48,43 +45,4 @@ func (core *Core) buildServerInfo() *ServerInfo {
 	logrus.Debugf("serverInfo: %#v", serverInfo)
 
 	return serverInfo
-}
-func (core *Core) updatePeerServerInfo(info *ServerInfo) {
-	logrus.Infof("%#v", info)
-
-	if err := core.db.Save(&PeerInfo{
-		Id:            info.Name,
-		ServerInfo:    info,
-		LastHeartBeat: time.Now(),
-	}).Error; err != nil {
-		logrus.Error(err)
-	}
-}
-func (core *Core) DebugPeerInfo() ([]PeerInfo, error) {
-	result := []PeerInfo{}
-	if err := core.db.Find(&result).Error; err != nil {
-		return nil, err
-	}
-	return result, nil
-}
-
-type PeerInfo struct {
-	Id string `gorm:"primary_key"`
-	*ServerInfo
-	LastHeartBeat time.Time
-	Score         int
-}
-
-func (info *ServerInfo) Value() (driver.Value, error) {
-	return json.Marshal(info)
-}
-func (info *ServerInfo) Scan(src interface{}) error {
-	switch v := src.(type) {
-	case []byte:
-		return json.Unmarshal(v, info)
-	case string:
-		return json.Unmarshal([]byte(v), info)
-	default:
-		return errors.Errorf("not []byte or string")
-	}
 }

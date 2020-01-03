@@ -55,7 +55,7 @@ func Run(ctx context.Context, c *core.Core, conf *Config) error {
 				c.Abort()
 			}
 		})
-		debug.GET("/peer-info", server.debugServerInfo)
+		debug.GET("/node-info", server.debugNodeInfo)
 	}
 
 	// TODO graceful shutdown

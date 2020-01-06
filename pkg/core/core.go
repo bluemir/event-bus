@@ -63,7 +63,7 @@ func (core *Core) Run(ctx context.Context) error {
 func (core *Core) tryConnect(ctx context.Context, peer *url.URL) error {
 	logrus.Tracef("try to connect '%s'", peer)
 
-	conf, err := websocket.NewConfig(peer.String(), peer.Host)
+	conf, err := websocket.NewConfig(peer.String(), peer.String())
 	if err != nil {
 		return err
 	}

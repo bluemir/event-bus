@@ -13,6 +13,10 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+const (
+	HeaderServerId = "Server-Id"
+)
+
 type Config struct {
 	NetworkId  string
 	NetworkKey string
@@ -49,7 +53,8 @@ func (core *Core) Run(ctx context.Context) error {
 	for _, peer := range core.config.Peers {
 		eg.Go(func() error {
 			addr := peer // copy
-			return core.tryConnect(ctx, addr)
+
+			return core.tryConnect(ctx, addr, core.delayNoExit)
 		})
 	}
 
@@ -60,7 +65,7 @@ func (core *Core) Run(ctx context.Context) error {
 	return eg.Wait()
 }
 
-func (core *Core) tryConnect(ctx context.Context, peer *url.URL) error {
+func (core *Core) tryConnect(ctx context.Context, peer *url.URL, retryDelayFunc func(int) time.Duration) error {
 	logrus.Tracef("try to connect '%s'", peer)
 
 	conf, err := websocket.NewConfig(peer.String(), peer.String())
@@ -71,16 +76,24 @@ func (core *Core) tryConnect(ctx context.Context, peer *url.URL) error {
 		"Authorization": []string{
 			"token " + core.getToken(),
 		},
+		HeaderServerId: []string{core.serverName},
 	}
-	for retry := 0; retry < core.config.Retry; retry++ {
+
+	for retry, delay := 0, retryDelayFunc(0); true; retry++ {
 		conn, err := websocket.DialConfig(conf)
 		if err != nil {
-			logrus.Errorf("connection failed(retry: %d): %s", retry, err)
-			time.Sleep(1*time.Second + time.Duration(retry*retry)*time.Second)
+			delay = retryDelayFunc(retry)
+			if delay < 0 {
+				return errors.Errorf("connection failed. count %d", retry)
+			}
+			logrus.Errorf("connection failed(retry after:%s, count: %d): %s", delay, retry, err)
+			time.Sleep(delay)
 			continue
 		}
+
 		logrus.Trace("connected. reset retry")
 		retry = 0
+
 		core.HandleConnection(conn)
 	}
 	return errors.Errorf("connection failed")

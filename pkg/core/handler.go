@@ -9,6 +9,16 @@ import (
 	"golang.org/x/net/websocket"
 )
 
+func getServerId(conn *websocket.Conn) string {
+	if conn.IsServerConn() {
+		id := conn.Request().Header.Get(HeaderServerId)
+		if id != "" {
+			return id
+		}
+	}
+	return xid.New().String()
+}
+
 func (core *Core) HandleConnection(conn *websocket.Conn) {
 	defer conn.Close()
 
@@ -24,12 +34,16 @@ func (core *Core) HandleConnection(conn *websocket.Conn) {
 	encoder := json.NewEncoder(conn)
 	decoder := json.NewDecoder(conn)
 
-	id := xid.New().String()
+	// maybe need lock?
+	id := getServerId(conn)
 
-	core.peers[id] = &Peer{encoder}
-	defer func() {
-		delete(core.peers, id)
-	}()
+	if exist := core.peerAdd(id, &Peer{
+		encoder: encoder,
+	}); exist {
+		logrus.Warn("already connected")
+		return
+	}
+	defer core.peerDel(id)
 
 	evt := &Event{}
 	for {

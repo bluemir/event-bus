@@ -39,6 +39,7 @@ func main() {
 	app.Flag("network", "Network ID").Default(xid.New().String()).PlaceHolder("RandomId").StringVar(&conf.Core.NetworkId)
 	app.Flag("key", "Network secret key").Default(util.RandomString(32)).PlaceHolder("RandomString").StringVar(&conf.Core.NetworkKey)
 	app.Flag("retry", "Retry count if connection closed").Default("10").IntVar(&conf.Core.Retry)
+	app.Flag("conn-number", "Conntion number").Default("3").IntVar(&conf.Core.ConnNumber)
 
 	kingpin.MustParse(app.Parse(os.Args[1:]))
 

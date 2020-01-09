@@ -10,11 +10,12 @@ func cron(ctx context.Context, f func(ctx context.Context) error, d time.Duratio
 		tick := time.NewTicker(1 * time.Minute)
 		defer tick.Stop()
 		for {
+			if err := f(ctx); err != nil {
+				return err
+			}
 			select {
 			case <-tick.C:
-				if err := f(ctx); err != nil {
-					return err
-				}
+				continue
 			case <-ctx.Done():
 				return ctx.Err()
 			}

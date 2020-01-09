@@ -1,6 +1,7 @@
 package core
 
 import (
+	"context"
 	"database/sql/driver"
 	"encoding/json"
 	"time"
@@ -47,4 +48,31 @@ func (info *ServerInfo) Scan(src interface{}) error {
 	default:
 		return errors.Errorf("not []byte or string")
 	}
+}
+func (core *Core) makePeerConnection(ctx context.Context) error {
+	n := core.countClientConn()
+	if n > core.config.ConnNumber {
+		logrus.Tracef("already have %d connection", n)
+		return nil // already connected mininum
+	}
+	logrus.Infof("more connection needed. expect %d, but %d", core.config.ConnNumber, n)
+
+	// random pick?
+	nodes := []NodeInfo{}
+	if err := core.db.Order("last_heart_beat DESC").Find(&nodes).Error; err != nil {
+		return err
+	}
+
+	for _, node := range nodes {
+		// TODO check already exist
+		if _, ok := core.peers[node.Id]; ok {
+			// already exist
+			continue
+		}
+
+		if err := core.tryConnect(ctx, node.Addresses...); err != nil {
+			return err
+		}
+	}
+	return nil
 }

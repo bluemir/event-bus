@@ -31,14 +31,16 @@ func (core *Core) HandleConnection(conn *websocket.Conn) {
 		core.collectActivity(conn.LocalAddr(), Connected)
 	}
 
+	// auth
+
 	encoder := json.NewEncoder(conn)
 	decoder := json.NewDecoder(conn)
 
 	// maybe need lock?
 	id := getServerId(conn)
-
 	if exist := core.peerAdd(id, &Peer{
-		encoder: encoder,
+		encoder:      encoder,
+		isClientConn: conn.IsClientConn(),
 	}); exist {
 		logrus.Warn("already connected")
 		return

@@ -78,7 +78,7 @@ clean:
 	ps -f -C $(BIN_NAME) | grep 'retry=10' | awk '{print $$2}' | xargs kill || true
 
 run: build/$(BIN_NAME)
-	$< -vv --bind=:3003 --network=test --key=""
+	$< -vv --bind=:3003 --network=test --key="" --peer "ws://localhost:3003/v1/stream"
 
 auto-run:
 	while true; do \

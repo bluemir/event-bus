@@ -65,7 +65,7 @@ func (core *Core) makePeerConnection(ctx context.Context) error {
 
 	for _, node := range nodes {
 		// TODO check already exist
-		if _, ok := core.peers[node.Id]; ok {
+		if _, ok := core.getPeer(node.Id); ok {
 			// already exist
 			continue
 		}

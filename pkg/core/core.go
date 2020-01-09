@@ -4,6 +4,7 @@ import (
 	"context"
 	"math/rand"
 	"net/url"
+	"sync"
 	"time"
 
 	"github.com/jinzhu/gorm"
@@ -46,6 +47,7 @@ type Core struct {
 	db         *gorm.DB
 	config     *Config
 	peers      map[string]*Peer
+	peersLock  sync.RWMutex
 	serverName string
 }
 
